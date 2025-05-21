@@ -3,6 +3,7 @@ import pandas as pd
 from supabase import create_client, Client
 import plotly.express as px 
 import datetime
+from datetime import date
 
 # Supabase Connection
 @st.cache_resource
@@ -83,29 +84,28 @@ def getCurrentLevel(current_user_id):
     # Check if we have a result
     if response.data:
         return response.data[0] if response.data else None
+    else:
+        return "No level found"
 
 # Updating Current Level
-def set_player_level(user_id, new_level, effective_date=None, notes=None):
+def set_player_level(user_id, new_level, effective_date, notes):
     
+    if isinstance(effective_date, date):
+        effective_date = effective_date.isoformat()
+
     supabase = get_supabase()
-    params = {
-        'p_user_id': user_id,
-        'p_new_level': new_level
-    }
-    
-    # Add optional parameters if provided
-    if effective_date:
-        params['p_effective_date'] = effective_date
-    if notes:
-        params['p_notes'] = notes
-        
-    # Call the function
-    response = supabase.rpc(
-        'update_player_level',
-        params
-    ).execute()
-    
-    return response.data[0] if response.data else None
+    response = (
+        supabase
+        .from_("player_levels")
+        .insert({
+            "user_id": user_id,
+            "level": new_level,
+            "effective_date": effective_date,
+            "notes": notes
+        })
+        .execute()
+    )
+    return response
 
 # Navigation Pages
 def register_nav_pages(PAGE_DEFS):
@@ -120,3 +120,11 @@ def register_nav_pages(PAGE_DEFS):
             )
         )
     return pages
+
+# Get profile data
+@st.cache_data(ttl=300)
+def getName(user_id):
+    supabase = get_supabase()
+    display_name = supabase.user_meta_data(user_id).get("display_name")
+    st.write(f"Display Name: {display_name}")
+    return display_name

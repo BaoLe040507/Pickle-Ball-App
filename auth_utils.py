@@ -1,113 +1,99 @@
-from supabase import Client, AuthApiError
 from utils import get_supabase
 import streamlit as st
+import re
 
 
 # ─── Auth Helpers ───────────────────────────────────────────────────────────────
 
-def sign_up(email: str, password: str):
-    """Try to register a new user. Returns dict with 'user' or 'error'."""
-    supabase: Client = get_supabase()
+def sign_up(email: str, password: str, display_name: str):
+    """
+    Pass `display_name` into Supabase as user metadata
+    so it appears under auth.users.raw_user_meta_data ➞ display_name.
+    """
+    supabase = get_supabase()
     try:
-        resp = supabase.auth.sign_up({"email": email, "password": password})
-        user = resp.user
-        return {
-            "user": {
-                "id": user.id,
-                "email": user.email,
+        user = supabase.auth.sign_up({
+            "email": email,
+            "password": password,
+            "options": {
+                "data": {"display_name": display_name}
             }
-        }
-    except AuthApiError as err:
-        return {"error": err.message}
-    except Exception as err:
-        return {"error": str(err)}
+        })
+        return user
+    except Exception as e:
+        st.error(f"Registration failed: {e}")
 
 
 def sign_in(email: str, password: str):
-    """Try to sign in. Returns dict with 'user' or 'error'."""
-    supabase: Client = get_supabase()
+    supabase = get_supabase()
     try:
-        resp = supabase.auth.sign_in_with_password({"email": email, "password": password})
-        user = resp.user
-        return {
-            "user": {
-                "id": user.id,
-                "email": user.email,
-            }
-        }
-    except AuthApiError as err:
-        return {"error": err.message}
-    except Exception as err:
-        return {"error": str(err)}
+        user = supabase.auth.sign_in_with_password({"email": email, "password": password})
+        return user
+    except Exception as e:
+        st.error(f"Login failed: {e}")
 
 
 def sign_out():
-    """Clear the session key; don't call rerun here."""
     supabase = get_supabase()
     try:
         supabase.auth.sign_out()
         st.session_state.user_email = None
-
-    except Exception as err:
-        st.error(f"Logout failed: {err}")
-    st.session_state.user_email = None
+    except Exception as e:
+        st.error(f"Logout failed: {e}")
 
 
 # ─── Streamlit Auth Screen ────────────────────────────────────────────────────
 
 def auth_screen():
+    supabase = get_supabase()
+    st.title("Authentication Page")
+    option = st.selectbox("Choose an action:", ["Login", "Sign Up"], key="auth_option")
 
-    # ensure our session key is defined
-    if "user_email" not in st.session_state:
-        st.session_state.user_email = None
-
-    st.title("Authentication")
-
-    option = st.selectbox(
-        "Action",
-        ["Login", "Sign Up"],
-        key="auth_option"
-    )
+    email    = st.text_input("Email", key="auth_email")
+    password = st.text_input("Password", type="password", key="auth_pwd")
 
     if option == "Sign Up":
-        with st.form("signup_form"):
-            email = st.text_input("Email", key="signup_email")
-            pwd1  = st.text_input("Password", type="password", key="signup_pwd1")
-            pwd2  = st.text_input("Confirm Password", type="password", key="signup_pwd2")
-            submitted = st.form_submit_button("Register")
+        confirm      = st.text_input("Confirm Password", type="password", key="auth_confirm")
+        display_name = st.text_input(
+            "Display Name",
+            key="auth_display_name",
+            help="Letters and spaces only (e.g. John Doe)"
+        )
 
-            if submitted:
-                if not (email and pwd1 and pwd2):
-                    st.error("All fields required.")
-                    return
-                if pwd1 != pwd2:
-                    st.error("Passwords must match.")
-                    return
+        if st.button("Register"):
+            # 1. validate locally
+            if not email or not password or not confirm or not display_name:
+                st.error("All fields are required.")
+                return
+            if password != confirm:
+                st.error("Passwords do not match.")
+                return
+            if len(password) < 6:
+                st.error("Password must be at least 6 characters.")
+                return
+            # allow letters and spaces only; no leading/trailing spaces
+            display_name = display_name.strip()
+            if not re.match(r"^[A-Za-z ]+$", display_name):
+                st.error("Display Name may only contain letters and spaces.")
+                return
 
-                resp = sign_up(email, pwd1)
-                if resp.get("error"):
-                    st.error(resp["error"])
-                else:
-                    st.success("Registered! Check your email to confirm.")
-                    st.rerun()
+            # 2. call sign_up with display_name
+            user = sign_up(email, password, display_name)
+            if hasattr(user, "error") and user.error:
+                st.error(f"Registration failed: {user.error.message}")
+            elif hasattr(user, "user") and user.user:
+                st.success("Registration successful! Please check your email to confirm.")
+                st.rerun()
 
     else:  # Login flow
-        with st.form("login_form"):
-            email = st.text_input("Email", key="login_email")
-            pwd   = st.text_input("Password", type="password", key="login_pwd")
-            submitted = st.form_submit_button("Login")
+        if st.button("Login"):
+            if not email or not password:
+                st.error("Enter both email and password.")
+                return
 
-            if submitted:
-                if not (email and pwd):
-                    st.error("Enter both fields.")
-                    return
-
-                resp = sign_in(email, pwd)
-                if resp.get("error"):
-                    st.error(resp["error"])
-                elif resp.get("user") and "email" in resp["user"]:
-                    st.session_state.user_email = resp["user"]["email"]
-                    st.success("Logged in!")
-                    st.rerun()
-                else:
-                    st.error("Unexpected login response. Please try again.")
+            user = supabase.auth.sign_in_with_password({"email": email, "password": password})
+            if hasattr(user, "error") and user.error:
+                st.error(f"Login failed: {user.error.message}")
+            else:
+                st.session_state.user_email = user.user.email
+                st.rerun()
