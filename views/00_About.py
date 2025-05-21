@@ -16,6 +16,7 @@ def about_page():
     
     # Separator
     st.divider()
+
     
     # Introduction
     st.markdown("""
