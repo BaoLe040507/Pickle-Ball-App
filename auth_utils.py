@@ -1,6 +1,38 @@
 from utils import get_supabase
 import streamlit as st
 import re
+from streamlit_cookies_manager import EncryptedCookieManager
+
+# ─── Cookie Manager Setup ──────────────────────────────────────────────────────
+
+cookies = EncryptedCookieManager(
+    prefix="pickleball_",
+    password=st.secrets["cookies"]["password"]
+)
+if not cookies.ready():
+    st.stop()
+
+def save_session_to_cookie(session):
+    if session and hasattr(session, "access_token") and hasattr(session, "refresh_token"):
+        cookies["access_token"] = session.access_token
+        cookies["refresh_token"] = session.refresh_token
+        cookies.save()
+
+def restore_session_from_cookie():
+    access_token = cookies.get("access_token")
+    refresh_token = cookies.get("refresh_token")
+    if access_token and refresh_token:
+        supabase = get_supabase()
+        try:
+            user = supabase.auth.get_user(access_token)
+            if user:
+                st.session_state["user"] = user
+                st.session_state["user_email"] = user.email
+                # Optionally, refresh session if needed
+        except Exception:
+            # Optionally, try to refresh session with refresh_token
+            st.session_state.pop("user", None)
+            st.session_state.pop("user_email", None)
 
 # ─── Auth Helpers ───────────────────────────────────────────────────────────────
 
@@ -22,6 +54,9 @@ def sign_up(email: str, password: str, display_name: str):
         if hasattr(res, "user") and res.user:
             st.session_state["user"] = res.user
             st.session_state["user_email"] = res.user.email
+        if hasattr(res, "session") and res.session:
+            st.session_state["supabase_session"] = res.session
+            save_session_to_cookie(res.session)
         return res
     except Exception as e:
         st.error(f"Registration failed: {e}")
@@ -40,6 +75,7 @@ def sign_in(email: str, password: str):
         # On success, store session and user for later rehydration
         if hasattr(res, "session") and res.session:
             st.session_state["supabase_session"] = res.session
+            save_session_to_cookie(res.session)
         if hasattr(res, "user") and res.user:
             st.session_state["user"] = res.user
             st.session_state["user_email"] = res.user.email
@@ -55,13 +91,17 @@ def sign_out():
         st.session_state.pop("supabase_session", None)
         st.session_state.pop("user", None)
         st.session_state.pop("user_email", None)
+        cookies["access_token"] = ""
+        cookies["refresh_token"] = ""
+        cookies.save()
     except Exception as e:
         st.error(f"Logout failed: {e}")
 
 # ─── Streamlit Auth Screen ────────────────────────────────────────────────────
 
 def auth_screen():
-    supabase = get_supabase()
+    restore_session_from_cookie()
+
     st.title("Authentication Page")
     option = st.selectbox("Choose an action:", ["Login", "Sign Up"], key="auth_option")
 
