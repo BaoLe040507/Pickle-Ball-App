@@ -1,6 +1,7 @@
 import streamlit as st
 from utils import get_supabase, getCurrentLevel,set_player_level
 
+
 def profile_page():
     supabase = get_supabase()
     col1, col2 = st.columns([1, 4])
@@ -18,6 +19,7 @@ def profile_page():
     # get_user() returns a UserResponse with a `.user` attribute
     resp = supabase.auth.get_user()
     user = resp.user  
+
     if user:
         # user_metadata is where we stored display_name
         display_name = user.user_metadata.get("display_name", "Unknown User")

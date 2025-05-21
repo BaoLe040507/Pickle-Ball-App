@@ -186,3 +186,4 @@ def highlight_win_loss(val):
     elif val == "Loss":
         return "background-color: lightcoral"
     return ""
+
