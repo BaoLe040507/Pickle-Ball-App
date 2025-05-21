@@ -1,12 +1,13 @@
 import streamlit as st
-from auth_utils import sign_out, auth_screen
-from utils import register_nav_pages
-
 st.set_page_config(
     page_title="SmashTrack",
     layout="wide",
-    initial_sidebar_state="auto"  # sidebar shown by default when logged in
+    initial_sidebar_state="auto",
 )
+
+from auth_utils import sign_out, auth_screen
+from utils import register_nav_pages
+
 
 def main_app(user_email: str):
 
