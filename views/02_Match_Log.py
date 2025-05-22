@@ -10,9 +10,7 @@ from utils import (
     addDoublesMatch,
     highlight_win_loss,
     get_distinct_players, 
-
 )
-
 
 def match_log_page():
     # Initialize edit mode
@@ -235,26 +233,21 @@ def match_log_page():
         st.info("No matches to show yet.")
         return
 
-    # Initialize the view type in session state if not exists
-    if 'match_log_view_type' not in st.session_state:
-        st.session_state.match_log_view_type = "Singles"
-    
+    # Use only the radio key for match history view selection
+    if "match_log_type" not in st.session_state:
+        st.session_state["match_log_type"] = "Singles"
+
     match_type_view = st.radio(
-        "View", 
-        ["Singles", "Doubles"], 
-        horizontal=True, 
-        key="match_log_type",
-        index=0 if st.session_state.match_log_view_type == "Singles" else 1
+        "View",
+        ["Singles", "Doubles"],
+        horizontal=True,
+        key="match_log_type"
     )
-    
-    # Update session state when radio changes
-    if match_type_view != st.session_state.match_log_view_type:
-        st.session_state.match_log_view_type = match_type_view
 
     if 'selected_matches' not in st.session_state:
         st.session_state.selected_matches = set()
 
-    if match_type_view == "Singles":
+    if st.session_state["match_log_type"] == "Singles":
         st.subheader("Your Singles Matches")
         df_s = df[df["match_type"] == "singles"].copy()
         

@@ -18,8 +18,8 @@ def main_app(user_email: str):
         {"page": "views/01_Profile.py",   "title": "Your Profile",     "icon": ":material/account_circle:"},
         {"page": "views/02_Match_Log.py",   "title": "Match History",      "icon": ":material/list_alt:"},
         {"page": "views/03_Dashboard.py",   "title": "Your Dashboard",     "icon": ":material/analytics:"},
-
     ]
+    
     pages = register_nav_pages(PAGE_DEFS)
     pg = st.navigation(pages=pages)
 
