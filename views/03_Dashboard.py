@@ -163,7 +163,7 @@ def dashboard_page():
                 "Average Points":"Avg Points",
                 "Team":          "Team"
             },
-            title="Average Points Scored vs Lost by Match Type"
+            title="Average Points Scored by Match Type"
         )
         st.plotly_chart(fig, use_container_width=True)
 

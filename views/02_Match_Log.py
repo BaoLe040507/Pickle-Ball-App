@@ -48,12 +48,17 @@ def match_log_page():
                 m_date = st.date_input("Date", date.today(), key="s_date")
 
                 # Opponent selection
+                # Singles Opponent selection
                 opp_choice = st.selectbox("Select Opponent", dropdown_options, key="s_opp_choice")
                 if opp_choice == "Enter new name...":
-                    opponent = st.text_input("Enter Opponent Name", key="s_opp_text", placeholder="Enter opponent's name")
+                    opponent = st.text_input(
+                        "Enter Opponent Name",
+                        key="s_opp_text",
+                        placeholder="Enter opponent's name",
+                        value=""
+                    )
                 else:
                     opponent = opp_choice
-                    st.text_input("Selected Opponent", value=opponent, disabled=True, key="s_opp_display")
 
                 opp_level = st.selectbox(
                     "Opponent Level",
@@ -112,12 +117,14 @@ def match_log_page():
                 d_date = st.date_input("Date", date.today(), key="d_date")
 
                 # Partner selection
+                # Partner selection
                 st.write("**Your Partner**")
                 partner_choice = st.selectbox("Select Partner", dropdown_options, key="d_partner_choice")
                 if partner_choice == "Enter new name...":
                     partner = st.text_input("Enter Partner Name", key="d_partner_text", placeholder="Enter partner's name")
                 else:
                     partner = partner_choice
+                    # Only show this if not entering a new name
                     st.text_input("Selected Partner", value=partner, disabled=True, key="d_partner_display")
                 
                 part_level = st.selectbox(
