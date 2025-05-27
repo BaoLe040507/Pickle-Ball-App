@@ -171,80 +171,76 @@ def dashboard_page():
 
     # ─── Tab 3: Opponent Analysis ──────────────────────────────────────────────
     with tab3:
-        st.subheader("Head-to-Head Records")
+        st.subheader("Opponent Level Analysis")
 
-        # ─── Singles Head-to-Head ────────────────────────────────────────────────
+        # Singles: Win rate vs. opponent level
         df_s = df[df["match_type"] == "singles"].copy()
         if df_s.empty:
             st.info("No singles matches to analyze.")
         else:
             st.markdown("**Singles**")
-            # Compute wins/losses per opponent
-            h2h_s = (
+            singles_level = (
                 df_s
-                .groupby(["opponent_1", "result"])
-                .size()
-                .unstack(fill_value=0)
+                .groupby("opponent_1_level")
+                .agg(
+                    Wins   = ("result", lambda x: (x == "Win").sum()),
+                    Losses = ("result", lambda x: (x == "Loss").sum()),
+                    Total  = ("result", "count")
+                )
                 .reset_index()
-                .rename(columns={"opponent_1": "Opponent"})
             )
-            # Add totals & win‐rate
-            h2h_s["Total"]    = h2h_s["Win"] + h2h_s["Loss"]
-            h2h_s["Win Rate"] = (h2h_s["Win"] / h2h_s["Total"] * 100).round(1)
+            singles_level["Win Rate"] = (singles_level["Wins"] / singles_level["Total"] * 100).round(1)
+            singles_level = singles_level.sort_values("opponent_1_level")
 
-            # Show table
             st.dataframe(
-                h2h_s[["Opponent", "Win", "Loss", "Total", "Win Rate"]],
+                singles_level.rename(columns={"opponent_1_level": "Opponent Level"}),
                 use_container_width=True,
                 hide_index=True
             )
 
-            # Bar chart of win‐rate
             fig_s = px.bar(
-                h2h_s.sort_values("Win Rate", ascending=False),
-                x="Opponent",
+                singles_level,
+                x="opponent_1_level",
                 y="Win Rate",
-                labels={"Win Rate":"Win Rate (%)"},
-                title="Singles Win Rate by Opponent",
+                labels={"opponent_1_level": "Opponent Level", "Win Rate": "Win Rate (%)"},
+                title="Singles Win Rate by Opponent Level",
                 text_auto=True
             )
             st.plotly_chart(fig_s, use_container_width=True)
 
-        # ─── Doubles Head-to-Head ────────────────────────────────────────────────
+        # Doubles: Win rate vs. average opponent team level
         df_d = df[df["match_type"] == "doubles"].copy()
         if df_d.empty:
             st.info("No doubles matches to analyze.")
         else:
             st.markdown("**Doubles**")
-            # Combine both opponents into one label
-            df_d["Opponents"] = df_d.apply(
-                lambda r: f"{r['opponent_1']} & {r['opponent_2']}", axis=1
-            )
-            # Compute wins/losses per opponent‐pair
-            h2h_d = (
+            # Calculate average opponent team level
+            df_d["Opp Team Level"] = ((df_d["opponent_1_level"] + df_d["opponent_2_level"]) / 2).round(2)
+            doubles_level = (
                 df_d
-                .groupby(["Opponents", "result"])
-                .size()
-                .unstack(fill_value=0)
+                .groupby("Opp Team Level")
+                .agg(
+                    Wins   = ("result", lambda x: (x == "Win").sum()),
+                    Losses = ("result", lambda x: (x == "Loss").sum()),
+                    Total  = ("result", "count")
+                )
                 .reset_index()
             )
-            h2h_d["Total"]    = h2h_d["Win"] + h2h_d["Loss"]
-            h2h_d["Win Rate"] = (h2h_d["Win"] / h2h_d["Total"] * 100).round(1)
+            doubles_level["Win Rate"] = (doubles_level["Wins"] / doubles_level["Total"] * 100).round(1)
+            doubles_level = doubles_level.sort_values("Opp Team Level")
 
-            # Show table
             st.dataframe(
-                h2h_d[["Opponents", "Win", "Loss", "Total", "Win Rate"]],
+                doubles_level,
                 use_container_width=True,
                 hide_index=True
             )
 
-            # Bar chart of win‐rate
             fig_d = px.bar(
-                h2h_d.sort_values("Win Rate", ascending=False),
-                x="Opponents",
+                doubles_level,
+                x="Opp Team Level",
                 y="Win Rate",
-                labels={"Win Rate":"Win Rate (%)"},
-                title="Doubles Win Rate by Opponent Pair",
+                labels={"Opp Team Level": "Opponent Team Level", "Win Rate": "Win Rate (%)"},
+                title="Doubles Win Rate by Opponent Team Level",
                 text_auto=True
             )
             st.plotly_chart(fig_d, use_container_width=True)

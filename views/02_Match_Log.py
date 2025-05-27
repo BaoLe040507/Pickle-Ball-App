@@ -10,6 +10,7 @@ from utils import (
     addDoublesMatch,
     highlight_win_loss,
     get_distinct_players, 
+    getCurrentLevel
 )
 
 def match_log_page():
@@ -352,8 +353,12 @@ def match_log_page():
         df_d["Win or Loss"] = df_d.apply(
             lambda r: "Win" if r["Your Score"] > r["Opponent Score"] else "Loss", axis=1
         )
+        # Calculate average team level
+        user_level = getCurrentLevel(user.id)
+        df_d["Team Level"] = ((df_d["Partner Level"]+ user_level)/2).round(2)
+        df_d["Opponent Team Level"] = ((df_d["Opponent 1 Level"] + df_d["Opponent 2 Level"]) / 2).round(2)
         df_d = df_d[[
-            "Match Date", "Win or Loss", "Your Score", "Opponent Score",
+            "Match Date", "Win or Loss", "Your Score", "Opponent Score","Team Level","Opponent Team Level",
             "Partner", "Partner Level", "Opponent 1", "Opponent 1 Level",
             "Opponent 2", "Opponent 2 Level"
         ]].sort_values("Match Date", ascending=False)
@@ -402,7 +407,9 @@ def match_log_page():
                   .format({
                       "Partner Level": "{:.1f}",
                       "Opponent 1 Level": "{:.1f}",
-                      "Opponent 2 Level": "{:.1f}"
+                      "Opponent 2 Level": "{:.1f}",
+                      "Team Level": "{:.2f}",
+                      "Opponent Team Level": "{:.2f}"
                   })
             )
             st.dataframe(styled, use_container_width=True, hide_index=True)
