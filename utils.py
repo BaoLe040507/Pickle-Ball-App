@@ -14,8 +14,10 @@ def get_supabase() -> Client:
     key = st.secrets["supabase"]["key"]
     return create_client(url, key)
 
-# Getting Match Data
+# Getting Match Data - USER-SPECIFIC CACHING
+@st.cache_data(ttl=300)
 def getMatches(user_id) -> pd.DataFrame:
+    """Cache matches data per user_id to prevent cross-user data leakage"""
     supabase = get_supabase()
     response = supabase.table("matches") \
                       .select("*") \
@@ -32,11 +34,13 @@ def getMatches(user_id) -> pd.DataFrame:
         
     return df
 
-# Getting unique players
+# Getting unique players - USER-SPECIFIC CACHING
+@st.cache_data(ttl=300)
 def get_distinct_players(user_id):
     """
     Fetch every past opponent_1, opponent_2, and player_partner for this user,
     dedupe them, and return a sorted list of names.
+    Cache per user_id to prevent cross-user data leakage.
     """
     supabase = get_supabase()
     resp = (
@@ -60,19 +64,31 @@ def get_distinct_players(user_id):
 # Updating Match Data
 def updateMatches(match_id, column, data):
     supabase = get_supabase()
-    return supabase.table("matches").update({column: data}).eq('id', match_id).execute()
+    result = supabase.table("matches").update({column: data}).eq('id', match_id).execute()
+    # Clear user-specific cache after update
+    clear_user_cache()
+    return result
 
 # Deleting Match Data
 def deleteMatch(match_id, user_id):
     supabase = get_supabase()
-    return supabase.table("matches").delete().eq('id', match_id).eq('user_id', user_id).execute()
+    result = supabase.table("matches").delete().eq('id', match_id).eq('user_id', user_id).execute()
+    # Clear user-specific cache after delete
+    clear_user_cache()
+    return result
 
+# Clear user-specific cached data
+def clear_user_cache():
+    """Clear cached data that might be user-specific"""
+    getMatches.clear()
+    get_distinct_players.clear() 
+    getCurrentLevel.clear()
 
 # Adding Singles Match
 def addSinglesMatch(current_user_id, match_date, opponent, opponent_level,
                     user_score, opponent_score):
     supabase = get_supabase()
-    if isinstance(match_date, (date, datetime)):
+    if isinstance(match_date, (date, datetime.datetime)):
         match_date = match_date.isoformat()
 
     payload = {
@@ -87,6 +103,8 @@ def addSinglesMatch(current_user_id, match_date, opponent, opponent_level,
 
     try:
         response = supabase.table("matches").insert(payload).execute()
+        # Clear user-specific cache after insert
+        clear_user_cache()
         return response.data
     except APIError as e:
         # Postgres/Supabase errors bubble up here
@@ -100,7 +118,7 @@ def addDoublesMatch(current_user_id, match_date,
                     opp2, opp2_level,
                     user_score, opponent_score):
     supabase = get_supabase()
-    if isinstance(match_date, (date, datetime)):
+    if isinstance(match_date, (date, datetime.datetime)):
         match_date = match_date.isoformat()
 
     payload = {
@@ -119,15 +137,18 @@ def addDoublesMatch(current_user_id, match_date,
 
     try:
         response = supabase.table("matches").insert(payload).execute()
+        # Clear user-specific cache after insert
+        clear_user_cache()
         return response.data
     except APIError as e:
         st.error(f"Failed to add doubles match: {e.message}")
         return None
 
 
-# Getting Currrent Level
+# Getting Current Level - USER-SPECIFIC CACHING
 @st.cache_data(ttl=300)
 def getCurrentLevel(current_user_id):
+    """Cache current level per user_id to prevent cross-user data leakage"""
     supabase = get_supabase()
     response = supabase.rpc(
         'get_current_level', 
@@ -155,6 +176,8 @@ def set_player_level(user_id, new_level, effective_date, notes):
         })
         .execute()
     )
+    # Clear user-specific cache after level update
+    clear_user_cache()
     return response
 
 # Navigation Pages
@@ -171,19 +194,23 @@ def register_nav_pages(PAGE_DEFS):
         )
     return pages
 
-# Get profile data
-@st.cache_data(ttl=300)
+# Get profile data - Remove caching to prevent cross-user issues
 def getName(user_id):
+    """Get display name from user metadata - no caching to prevent cross-user issues"""
     supabase = get_supabase()
-    display_name = supabase.user_meta_data(user_id).get("display_name")
-    st.write(f"Display Name: {display_name}")
-    return display_name
+    try:
+        user_response = supabase.auth.get_user()
+        if user_response.user and user_response.user.user_metadata:
+            display_name = user_response.user.user_metadata.get("display_name", "Unknown User")
+            return display_name
+    except Exception as e:
+        st.error(f"Error getting user name: {e}")
+    return "Unknown User"
 
-# Highlight  cells based on win loss
+# Highlight cells based on win loss
 def highlight_win_loss(val):
     if val == "Win":
         return "background-color: lightgreen"
     elif val == "Loss":
         return "background-color: lightcoral"
     return ""
-

@@ -6,11 +6,12 @@ st.set_page_config(
 )
 
 from auth_utils import sign_out, auth_screen
-from utils import register_nav_pages
+from utils import register_nav_pages, clear_user_cache
 
 
 def main_app(user_email: str):
-
+    # Add user email to sidebar for debugging/confirmation
+    st.sidebar.text(f"Logged in as: {user_email}")
     st.sidebar.button("Sign Out", on_click=sign_out)
 
     PAGE_DEFS = [
@@ -30,11 +31,20 @@ def main_app(user_email: str):
 
 
 # entrypoint
-if "user_email" not in st.session_state:
-    st.session_state.user_email = None
+def initialize_session():
+    """Initialize session state with proper defaults"""
+    if "user_email" not in st.session_state:
+        st.session_state.user_email = None
+    if "user" not in st.session_state:
+        st.session_state.user = None
 
+# Initialize session state
+initialize_session()
+
+# Main app logic
 if st.session_state.user_email:
     main_app(st.session_state.user_email)
 else:
-
+    # Clear any cached data when not logged in
+    clear_user_cache()
     auth_screen()

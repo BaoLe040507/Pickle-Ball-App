@@ -215,10 +215,10 @@ def dashboard_page():
         else:
             st.markdown("**Doubles**")
             # Calculate average opponent team level
-            df_d["Opp Team Level"] = ((df_d["opponent_1_level"] + df_d["opponent_2_level"]) / 2).round(2)
+            df_d["Opponent Team Level"] = ((df_d["opponent_1_level"] + df_d["opponent_2_level"]) / 2).round(2)
             doubles_level = (
                 df_d
-                .groupby("Opp Team Level")
+                .groupby("Opponent Team Level")
                 .agg(
                     Wins   = ("result", lambda x: (x == "Win").sum()),
                     Losses = ("result", lambda x: (x == "Loss").sum()),
@@ -227,7 +227,7 @@ def dashboard_page():
                 .reset_index()
             )
             doubles_level["Win Rate"] = (doubles_level["Wins"] / doubles_level["Total"] * 100).round(1)
-            doubles_level = doubles_level.sort_values("Opp Team Level")
+            doubles_level = doubles_level.sort_values("Opponent Team Level")
 
             st.dataframe(
                 doubles_level,
@@ -237,9 +237,9 @@ def dashboard_page():
 
             fig_d = px.bar(
                 doubles_level,
-                x="Opp Team Level",
+                x="Opponent Team Level",
                 y="Win Rate",
-                labels={"Opp Team Level": "Opponent Team Level", "Win Rate": "Win Rate (%)"},
+                labels={"Opponent Team Level": "Opponent Team Level", "Win Rate": "Win Rate (%)"},
                 title="Doubles Win Rate by Opponent Team Level",
                 text_auto=True
             )

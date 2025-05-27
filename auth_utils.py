@@ -1,4 +1,4 @@
-from utils import get_supabase
+from utils import get_supabase, clear_user_cache
 import streamlit as st
 import re
 from streamlit_cookies_manager import EncryptedCookieManager
@@ -24,15 +24,29 @@ def restore_session_from_cookie():
     if access_token and refresh_token:
         supabase = get_supabase()
         try:
-            user = supabase.auth.get_user(access_token)
-            if user:
-                st.session_state["user"] = user
-                st.session_state["user_email"] = user.email
-                # Optionally, refresh session if needed
-        except Exception:
-            # Optionally, try to refresh session with refresh_token
-            st.session_state.pop("user", None)
-            st.session_state.pop("user_email", None)
+            user_response = supabase.auth.get_user(access_token)
+            if user_response and user_response.user:
+                # Only set session state if we successfully get user data
+                st.session_state["user"] = user_response.user
+                st.session_state["user_email"] = user_response.user.email
+                return True
+        except Exception as e:
+            # Clear invalid session data
+            clear_session_state()
+            clear_cookies()
+    return False
+
+def clear_session_state():
+    """Clear all user-related session state"""
+    keys_to_clear = ["user", "user_email", "supabase_session"]
+    for key in keys_to_clear:
+        st.session_state.pop(key, None)
+
+def clear_cookies():
+    """Clear authentication cookies"""
+    cookies["access_token"] = ""
+    cookies["refresh_token"] = ""
+    cookies.save()
 
 # ─── Auth Helpers ───────────────────────────────────────────────────────────────
 
@@ -50,6 +64,10 @@ def sign_up(email: str, password: str, display_name: str):
                 "data": {"display_name": display_name}
             }
         })
+        # Clear any existing session state first
+        clear_session_state()
+        clear_user_cache()
+        
         # Optionally auto-login after sign up if no error and user returned
         if hasattr(res, "user") and res.user:
             st.session_state["user"] = res.user
@@ -72,6 +90,11 @@ def sign_in(email: str, password: str):
             "email": email,
             "password": password
         })
+        
+        # Clear any existing session state first
+        clear_session_state()
+        clear_user_cache()
+        
         # On success, store session and user for later rehydration
         if hasattr(res, "session") and res.session:
             st.session_state["supabase_session"] = res.session
@@ -84,23 +107,24 @@ def sign_in(email: str, password: str):
         st.error(f"Login failed: {e}")
 
 def sign_out():
+    """Sign out and clear all session data"""
     supabase = get_supabase()
     try:
         supabase.auth.sign_out()
-        # Clear stored session & user
-        st.session_state.pop("supabase_session", None)
-        st.session_state.pop("user", None)
-        st.session_state.pop("user_email", None)
-        cookies["access_token"] = ""
-        cookies["refresh_token"] = ""
-        cookies.save()
     except Exception as e:
         st.error(f"Logout failed: {e}")
+    finally:
+        # Always clear session state and cache, even if sign_out fails
+        clear_session_state()
+        clear_cookies()
+        clear_user_cache()
 
 # ─── Streamlit Auth Screen ────────────────────────────────────────────────────
 
 def auth_screen():
-    restore_session_from_cookie()
+    # Only try to restore session if user is not already logged in
+    if not st.session_state.get("user_email"):
+        restore_session_from_cookie()
 
     st.title("Authentication Page")
     option = st.selectbox("Choose an action:", ["Login", "Sign Up"], key="auth_option")
