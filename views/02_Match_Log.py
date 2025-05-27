@@ -4,13 +4,13 @@ import re
 from datetime import date
 from utils import (
     get_supabase,
-    getMatches,
+    getMatches_safe,
     deleteMatch,
     addSinglesMatch,
     addDoublesMatch,
     highlight_win_loss,
-    get_distinct_players, 
-    getCurrentLevel
+    get_distinct_players_safe, 
+    getCurrentLevel_safe
 )
 
 def match_log_page():
@@ -36,7 +36,7 @@ def match_log_page():
     )
 
     # Fetch past names
-    players = get_distinct_players(user.id)
+    players = get_distinct_players_safe(user.id)
     dropdown_options = ["Enter new name..."] + players
 
     # Add New Match
@@ -236,7 +236,7 @@ def match_log_page():
         st.session_state.edit_mode = not st.session_state.edit_mode
         st.rerun()
 
-    df = getMatches(user.id)
+    df = getMatches_safe(user.id)
     if df.empty:
         st.info("No matches to show yet.")
         return
@@ -354,7 +354,7 @@ def match_log_page():
             lambda r: "Win" if r["Your Score"] > r["Opponent Score"] else "Loss", axis=1
         )
         # Calculate average team level
-        user_level = getCurrentLevel(user.id)
+        user_level = getCurrentLevel_safe(user.id)
         df_d["Team Level"] = ((df_d["Partner Level"]+ user_level)/2).round(2)
         df_d["Opponent Team Level"] = ((df_d["Opponent 1 Level"] + df_d["Opponent 2 Level"]) / 2).round(2)
         df_d = df_d[[

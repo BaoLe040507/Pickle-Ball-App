@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 from utils import (
-    get_supabase, getCurrentLevel, set_player_level, 
-    getMatches, get_distinct_players
+    get_supabase, getCurrentLevel_safe, set_player_level, 
+    getMatches_safe, get_distinct_players_safe
 )
 
 
@@ -88,7 +88,7 @@ def profile_page():
             st.markdown(f"**Account Created:** {pd.to_datetime(user.created_at).strftime('%B %d, %Y')}")
             
             # Activity Summary
-            matches_df = getMatches(user.id)
+            matches_df = getMatches_safe(user.id)
             activity = get_activity_summary(matches_df)
             
             st.markdown("**Activity Summary:**")
@@ -103,7 +103,7 @@ def profile_page():
         # Current Level Section
         with st.container(border=True):
             st.subheader("💪 Your Current Level")
-            current_level = getCurrentLevel(user.id)
+            current_level = getCurrentLevel_safe(user.id)
             st.markdown(f""" Current Level: :blue-background[**{current_level}**]""")
 
             # Level update form
@@ -124,7 +124,7 @@ def profile_page():
                     if st.form_submit_button("Update Level"):
                         resp = set_player_level(user.id, new_level, effective_date, notes)
                         if resp.data:
-                            getCurrentLevel.clear()
+                            getCurrentLevel_safe.clear()
                             st.success("Level updated successfully!")
                             st.session_state.show_level_form = False
                             st.rerun()
@@ -152,7 +152,7 @@ def profile_page():
 
     # Frequent Players Section
     st.subheader("🤝 Your Tennis Network")
-    players = get_distinct_players(user.id)
+    players = get_distinct_players_safe(user.id)
     
     if players:
         with st.container(border=True):

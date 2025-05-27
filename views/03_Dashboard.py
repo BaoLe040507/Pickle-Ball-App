@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta, date
 import numpy as np
-from utils import get_supabase, getMatches, getCurrentLevel
+from utils import get_supabase, getMatches_safe, getCurrentLevel_safe
 
 def dashboard_page():
     # Get user
@@ -20,7 +20,7 @@ def dashboard_page():
     st.divider()
 
     # Load & preprocess
-    df = getMatches(user.id)
+    df = getMatches_safe(user.id)
     if df.empty:
         st.info("No match data available. Add some matches in the Match Log to see your performance analytics.")
         return
@@ -249,7 +249,7 @@ def dashboard_page():
     # ─── Tab 4: Level Progression ───────────────────────────────────────────────
     with tab4:
         st.subheader("Your Current Level")
-        current_level = getCurrentLevel(user.id)
+        current_level = getCurrentLevel_safe(user.id)
         if current_level is None:
             st.info("No level data found.")
         else:
